@@ -1,4 +1,6 @@
-﻿namespace PokerLogViewer.Models;
+﻿using System.Collections.Generic;
+
+namespace PokerLogViewer.Models;
 
 public class PokerHand
 {
@@ -7,4 +9,9 @@ public class PokerHand
     public List<string> Players { get; set; } = new();
     public List<string> Winners { get; set; } = new();
     public string WinAmount { get; set; } = string.Empty;
+
+    public override string ToString()
+    {
+        return $"#{HandID} | {TableName} | {WinAmount}";
+    }
 }

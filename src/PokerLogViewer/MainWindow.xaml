@@ -5,8 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="PokerLogViewer"
-        Height="450"
-        Width="800">
+        Height="700"
+        Width="1200">
 
     <Grid Margin="12">
         <Grid.RowDefinitions>
@@ -16,6 +16,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
+        <!-- Top bar: folder selection -->
         <StackPanel Grid.Row="0"
                     Orientation="Horizontal"
                     Margin="0,0,0,8">
@@ -26,9 +27,10 @@
             <TextBlock Text="{Binding SelectedFolderPath}"
                        VerticalAlignment="Center"
                        TextWrapping="Wrap"
-                       Width="620"/>
+                       Width="980"/>
         </StackPanel>
 
+        <!-- Scan -->
         <Button Grid.Row="1"
                 Content="Start Scan"
                 Command="{Binding StartScanCommand}"
@@ -36,15 +38,77 @@
                 HorizontalAlignment="Left"
                 Margin="0,0,0,8"/>
 
-        <ListBox Grid.Row="2"
-                 ItemsSource="{Binding Hands}">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <TextBlock Text="{Binding HandID}" />
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+        <!-- Main content -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="3*"/>
+            </Grid.ColumnDefinitions>
 
+            <!-- Tables -->
+            <GroupBox Header="Tables" Grid.Column="0" Margin="0,0,8,0">
+                <ListBox ItemsSource="{Binding Tables}"
+                         SelectedItem="{Binding SelectedTable, Mode=TwoWay}"
+                         DisplayMemberPath="TableName"/>
+            </GroupBox>
+
+            <!-- Hands -->
+            <GroupBox Header="Hands" Grid.Column="1" Margin="0,0,8,0">
+                <ListBox ItemsSource="{Binding SelectedTableHands}"
+                         SelectedItem="{Binding SelectedHand, Mode=TwoWay}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </GroupBox>
+
+            <!-- Details -->
+            <GroupBox Header="Hand Details" Grid.Column="2">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+
+                        <TextBlock Text="{Binding SelectedHand.HandID, StringFormat=Hand ID: {0}}"
+                                   Margin="0,0,0,6"/>
+
+                        <TextBlock Text="{Binding SelectedHand.TableName, StringFormat=Table: {0}}"
+                                   Margin="0,0,0,6"/>
+
+                        <TextBlock Text="{Binding SelectedHand.WinAmount, StringFormat=Win Amount: {0}}"
+                                   Margin="0,0,0,6"/>
+
+                        <TextBlock Text="Players:"
+                                   FontWeight="Bold"
+                                   Margin="0,12,0,4"/>
+
+                        <ItemsControl ItemsSource="{Binding SelectedHand.Players}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" Margin="0,0,0,4"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="Winners:"
+                                   FontWeight="Bold"
+                                   Margin="0,12,0,4"/>
+
+                        <ItemsControl ItemsSource="{Binding SelectedHand.Winners}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" Margin="0,0,0,4"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </GroupBox>
+        </Grid>
+
+        <!-- Status -->
         <TextBlock Grid.Row="3"
                    Text="{Binding StatusText}"
                    Margin="0,8,0,0"/>

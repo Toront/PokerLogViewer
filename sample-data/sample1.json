@@ -1,16 +1,16 @@
 [
   {
-    "handID": 10001,
-    "tableName": "Table 1",
-    "players": ["Alice", "Bob"],
-    "winners": ["Alice"],
-    "winAmount": "2.50"
+    "HandID": 10001,
+    "TableName": "Table 1",
+    "Players": ["Alice", "Bob"],
+    "Winners": ["Alice"],
+    "WinAmount": "2.50"
   },
   {
-    "handID": 10002,
-    "tableName": "Table 1",
-    "players": ["Alice", "Bob"],
-    "winners": ["Bob"],
-    "winAmount": "1.20"
+    "HandID": 10002,
+    "TableName": "Table 1",
+    "Players": ["Alice", "Bob"],
+    "Winners": ["Bob"],
+    "WinAmount": "1.20"
   }
 ]

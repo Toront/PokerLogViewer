@@ -4,5 +4,5 @@ namespace PokerLogViewer.Services;
 
 public interface IJsonHandParser
 {
-    List<PokerHand> ParseFile(string filePath);
+    IReadOnlyList<PokerHand> ParseFile(string filePath);
 }

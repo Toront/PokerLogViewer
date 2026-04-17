@@ -1,21 +1,46 @@
-﻿using System.IO;
+﻿using PokerLogViewer.Models;
+using System.IO;
 using System.Text.Json;
-using PokerLogViewer.Models;
 
 namespace PokerLogViewer.Services;
 
 public class JsonHandParser : IJsonHandParser
 {
-    public List<PokerHand> ParseFile(string filePath)
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
+        PropertyNameCaseInsensitive = true
+    };
+
+    public IReadOnlyList<PokerHand> ParseFile(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+            throw new ArgumentException("File path cannot be empty.", nameof(filePath));
+
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException($"File not found: {filePath}", filePath);
+
         var json = File.ReadAllText(filePath);
 
-        var options = new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        };
+        if (string.IsNullOrWhiteSpace(json))
+            return Array.Empty<PokerHand>();
 
-        var result = JsonSerializer.Deserialize<List<PokerHand>>(json, options);
-        return result ?? new List<PokerHand>();
+        var dtos = JsonSerializer.Deserialize<List<JsonHandDto>>(json, JsonOptions);
+
+        if (dtos is null || dtos.Count == 0)
+            return Array.Empty<PokerHand>();
+
+        return dtos.Select(MapToPokerHand).ToList();
+    }
+
+    private static PokerHand MapToPokerHand(JsonHandDto dto)
+    {
+        return new PokerHand
+        {
+            HandID = dto.HandID,
+            TableName = dto.TableName,
+            Players = dto.Players ?? new List<string>(),
+            Winners = dto.Winners ?? new List<string>(),
+            WinAmount = dto.WinAmount
+        };
     }
 }

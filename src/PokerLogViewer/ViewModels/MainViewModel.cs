@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows.Threading;
 using PokerLogViewer.Commands;
 using PokerLogViewer.Models;
@@ -15,6 +16,9 @@ public class MainViewModel : ViewModelBase
     private string _statusText = "Ready";
     private string _selectedFolderPath = string.Empty;
     private bool _isScanning;
+
+    private PokerTable? _selectedTable;
+    private PokerHand? _selectedHand;
 
     public MainViewModel()
     {
@@ -54,6 +58,26 @@ public class MainViewModel : ViewModelBase
 
     public ObservableCollection<PokerHand> Hands { get; } = new();
 
+    public ObservableCollection<PokerTable> Tables { get; } = new();
+
+    public ObservableCollection<PokerHand> SelectedTableHands { get; } = new();
+
+    public PokerTable? SelectedTable
+    {
+        get => _selectedTable;
+        set
+        {
+            if (SetProperty(ref _selectedTable, value))
+                UpdateSelectedTableHands();
+        }
+    }
+
+    public PokerHand? SelectedHand
+    {
+        get => _selectedHand;
+        set => SetProperty(ref _selectedHand, value);
+    }
+
     public RelayCommand SelectFolderCommand { get; }
     public RelayCommand StartScanCommand { get; }
 
@@ -79,6 +103,11 @@ public class MainViewModel : ViewModelBase
             return;
 
         Hands.Clear();
+        Tables.Clear();
+        SelectedTableHands.Clear();
+        SelectedTable = null;
+        SelectedHand = null;
+
         IsScanning = true;
         StatusText = "Scanning...";
 
@@ -92,7 +121,9 @@ public class MainViewModel : ViewModelBase
                     foreach (var hand in hands)
                         Hands.Add(hand);
 
-                    StatusText = $"Done. Found {hands.Count} hands.";
+                    BuildTables();
+
+                    StatusText = $"Done. Found {hands.Count} hands across {Tables.Count} tables.";
                     IsScanning = false;
                 });
             },
@@ -104,5 +135,37 @@ public class MainViewModel : ViewModelBase
                     IsScanning = false;
                 });
             });
+    }
+
+    private void BuildTables()
+    {
+        Tables.Clear();
+
+        var grouped = Hands
+            .GroupBy(h => h.TableName)
+            .OrderBy(g => g.Key);
+
+        foreach (var group in grouped)
+        {
+            Tables.Add(new PokerTable
+            {
+                TableName = group.Key,
+                Hands = new ObservableCollection<PokerHand>(group)
+            });
+        }
+
+        if (Tables.Count > 0)
+            SelectedTable = Tables[0];
+    }
+
+    private void UpdateSelectedTableHands()
+    {
+        SelectedTableHands.Clear();
+
+        if (SelectedTable is null)
+            return;
+
+        foreach (var hand in SelectedTable.Hands)
+            SelectedTableHands.Add(hand);
     }
 }
