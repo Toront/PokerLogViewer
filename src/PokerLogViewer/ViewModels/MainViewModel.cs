@@ -1,9 +1,11 @@
-﻿using System.Collections.ObjectModel;
-using System.Linq;
-using System.Windows.Threading;
-using PokerLogViewer.Commands;
+﻿using PokerLogViewer.Commands;
 using PokerLogViewer.Models;
 using PokerLogViewer.Services;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.Linq;
+using System.Windows;
+using System.Windows.Threading;
 
 namespace PokerLogViewer.ViewModels;
 
@@ -28,6 +30,18 @@ public class MainViewModel : ViewModelBase
 
         SelectFolderCommand = new RelayCommand(SelectFolder);
         StartScanCommand = new RelayCommand(StartScan, CanStartScan);
+
+        Tables.CollectionChanged += (_, __) =>
+        {
+            OnPropertyChanged(nameof(HasTables));
+            OnPropertyChanged(nameof(EmptyTablesMessageVisibility));
+        };
+
+        SelectedTableHands.CollectionChanged += (_, __) =>
+        {
+            OnPropertyChanged(nameof(HasHands));
+            OnPropertyChanged(nameof(EmptyHandsMessageVisibility));
+        };
     }
 
     public string StatusText
@@ -57,10 +71,12 @@ public class MainViewModel : ViewModelBase
     }
 
     public ObservableCollection<PokerHand> Hands { get; } = new();
-
     public ObservableCollection<PokerTable> Tables { get; } = new();
-
     public ObservableCollection<PokerHand> SelectedTableHands { get; } = new();
+
+    public bool HasTables => Tables.Count > 0;
+    public bool HasHands => SelectedTableHands.Count > 0;
+    public bool HasSelectedHand => SelectedHand is not null;
 
     public PokerTable? SelectedTable
     {
@@ -68,15 +84,33 @@ public class MainViewModel : ViewModelBase
         set
         {
             if (SetProperty(ref _selectedTable, value))
+            {
                 UpdateSelectedTableHands();
+                OnPropertyChanged(nameof(HasSelectedTable));
+                OnPropertyChanged(nameof(EmptyHandsMessageVisibility));
+                OnPropertyChanged(nameof(HasSelectedHand));
+            }
         }
     }
 
     public PokerHand? SelectedHand
     {
         get => _selectedHand;
-        set => SetProperty(ref _selectedHand, value);
+        set
+        {
+            if (SetProperty(ref _selectedHand, value))
+            {
+                OnPropertyChanged(nameof(HasSelectedHand));
+                OnPropertyChanged(nameof(EmptyDetailsMessageVisibility));
+            }
+        }
     }
+
+    public bool HasSelectedTable => SelectedTable is not null;
+
+    public Visibility EmptyTablesMessageVisibility => HasTables ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility EmptyHandsMessageVisibility => HasHands ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility EmptyDetailsMessageVisibility => HasSelectedHand ? Visibility.Collapsed : Visibility.Visible;
 
     public RelayCommand SelectFolderCommand { get; }
     public RelayCommand StartScanCommand { get; }
@@ -108,12 +142,19 @@ public class MainViewModel : ViewModelBase
         SelectedTable = null;
         SelectedHand = null;
 
+        OnPropertyChanged(nameof(HasTables));
+        OnPropertyChanged(nameof(HasHands));
+        OnPropertyChanged(nameof(HasSelectedHand));
+        OnPropertyChanged(nameof(EmptyTablesMessageVisibility));
+        OnPropertyChanged(nameof(EmptyHandsMessageVisibility));
+        OnPropertyChanged(nameof(EmptyDetailsMessageVisibility));
+
         IsScanning = true;
-        StatusText = "Scanning...";
+        StatusText = "Сканирование...";
 
         _folderScanService.ScanFolder(
             SelectedFolderPath,
-            onCompleted: hands =>
+            onCompleted: (hands, processedFiles) =>
             {
                 _dispatcher.Invoke(() =>
                 {
@@ -123,7 +164,7 @@ public class MainViewModel : ViewModelBase
 
                     BuildTables();
 
-                    StatusText = $"Done. Found {hands.Count} hands across {Tables.Count} tables.";
+                    StatusText = $"✅ Готово ({processedFiles} файлов обработано)";
                     IsScanning = false;
                 });
             },
@@ -131,7 +172,7 @@ public class MainViewModel : ViewModelBase
             {
                 _dispatcher.Invoke(() =>
                 {
-                    StatusText = $"Error: {ex.Message}";
+                    StatusText = $"❌ Ошибка: {ex.Message}";
                     IsScanning = false;
                 });
             });
@@ -150,9 +191,12 @@ public class MainViewModel : ViewModelBase
             Tables.Add(new PokerTable
             {
                 TableName = group.Key,
-                Hands = new ObservableCollection<PokerHand>(group)
+                Hands = new ObservableCollection<PokerHand>(group.OrderBy(h => h.HandID))
             });
         }
+
+        OnPropertyChanged(nameof(HasTables));
+        OnPropertyChanged(nameof(EmptyTablesMessageVisibility));
 
         if (Tables.Count > 0)
             SelectedTable = Tables[0];
@@ -167,5 +211,10 @@ public class MainViewModel : ViewModelBase
 
         foreach (var hand in SelectedTable.Hands)
             SelectedTableHands.Add(hand);
+
+        OnPropertyChanged(nameof(HasHands));
+        OnPropertyChanged(nameof(EmptyHandsMessageVisibility));
+
+        SelectedHand = null;
     }
 }

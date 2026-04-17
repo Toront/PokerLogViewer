@@ -6,7 +6,7 @@ public interface IFolderScanService
 {
     void ScanFolder(
         string folderPath,
-        Action<IReadOnlyList<PokerHand>> onCompleted,
+        Action<IReadOnlyList<PokerHand>, int> onCompleted,
         Action<Exception> onError);
 
     void Stop();

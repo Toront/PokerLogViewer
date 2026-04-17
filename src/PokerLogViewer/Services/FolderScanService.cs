@@ -1,4 +1,5 @@
 ﻿using PokerLogViewer.Models;
+using System.Diagnostics;
 using System.IO;
 
 namespace PokerLogViewer.Services;
@@ -16,7 +17,7 @@ public class FolderScanService : IFolderScanService
 
     public void ScanFolder(
         string folderPath,
-        Action<IReadOnlyList<PokerHand>> onCompleted,
+        Action<IReadOnlyList<PokerHand>, int> onCompleted,
         Action<Exception> onError)
     {
         if (string.IsNullOrWhiteSpace(folderPath))
@@ -46,7 +47,7 @@ public class FolderScanService : IFolderScanService
 
     private void ScanFolderInternal(
         string folderPath,
-        Action<IReadOnlyList<PokerHand>> onCompleted,
+        Action<IReadOnlyList<PokerHand>, int> onCompleted,
         Action<Exception> onError)
     {
         try
@@ -55,6 +56,8 @@ public class FolderScanService : IFolderScanService
                 throw new DirectoryNotFoundException($"Folder does not exist: {folderPath}");
 
             var allHands = new List<PokerHand>();
+            var processedFiles = 0;
+
             var jsonFiles = Directory.GetFiles(folderPath, "*.json", SearchOption.AllDirectories);
 
             foreach (var filePath in jsonFiles)
@@ -62,28 +65,23 @@ public class FolderScanService : IFolderScanService
                 if (_isStopped)
                     break;
 
-                ParseFileSafely(filePath, allHands);
+                try
+                {
+                    var parsedHands = _parser.ParseFile(filePath);
+                    allHands.AddRange(parsedHands);
+                    processedFiles++;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[FolderScanService] Failed to parse '{filePath}': {ex.Message}");
+                }
             }
 
-            onCompleted(allHands);
+            onCompleted(allHands, processedFiles);
         }
         catch (Exception ex)
         {
             onError(ex);
-        }
-    }
-
-    private void ParseFileSafely(string filePath, List<PokerHand> allHands)
-    {
-        try
-        {
-            var parsedHands = _parser.ParseFile(filePath);
-            if (parsedHands.Count > 0)
-                allHands.AddRange(parsedHands);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[FolderScanService] Failed to parse '{filePath}': {ex.Message}");
         }
     }
 }
