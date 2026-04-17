@@ -8,10 +8,45 @@
         Height="450"
         Width="800">
 
-    <Grid>
-        <TextBlock Text="{Binding StatusText}"
-                   HorizontalAlignment="Center"
-                   VerticalAlignment="Center"
-                   FontSize="20"/>
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0"
+                    Orientation="Horizontal"
+                    Margin="0,0,0,8">
+            <Button Content="Select Folder"
+                    Command="{Binding SelectFolderCommand}"
+                    Width="120"
+                    Margin="0,0,8,0"/>
+            <TextBlock Text="{Binding SelectedFolderPath}"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"
+                       Width="620"/>
+        </StackPanel>
+
+        <Button Grid.Row="1"
+                Content="Start Scan"
+                Command="{Binding StartScanCommand}"
+                Width="120"
+                HorizontalAlignment="Left"
+                Margin="0,0,0,8"/>
+
+        <ListBox Grid.Row="2"
+                 ItemsSource="{Binding Hands}">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding HandID}" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <TextBlock Grid.Row="3"
+                   Text="{Binding StatusText}"
+                   Margin="0,8,0,0"/>
     </Grid>
 </Window>
