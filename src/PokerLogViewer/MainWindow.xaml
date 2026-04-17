@@ -3,10 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:vm="clr-namespace:PokerLogViewer.ViewModels"
+        xmlns:local="clr-namespace:PokerLogViewer.Converters"
         mc:Ignorable="d"
         Title="PokerLogViewer"
-        Height="720"
+        Height="780"
         Width="1280"
         MinHeight="600"
         MinWidth="1000"
@@ -14,6 +14,7 @@
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
 
         <Style TargetType="GroupBox">
             <Setter Property="Margin" Value="0,0,8,0"/>
@@ -27,6 +28,7 @@
 
     <Grid Margin="12">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -61,7 +63,35 @@
                     Height="30"/>
         </StackPanel>
 
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="2" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="3*"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBox Grid.Column="0"
+                     Text="{Binding TableSearchText, UpdateSourceTrigger=PropertyChanged}"
+                     Height="28"
+                     Margin="0,0,8,0"
+                     ToolTip="Search tables by TableName"
+                     VerticalContentAlignment="Center"/>
+
+            <TextBox Grid.Column="1"
+                     Text="{Binding HandSearchText, UpdateSourceTrigger=PropertyChanged}"
+                     Height="28"
+                     Margin="0,0,8,0"
+                     ToolTip="Search hands by HandID"
+                     VerticalContentAlignment="Center"/>
+
+            <TextBlock Grid.Column="2"
+                       Text="Search is applied instantly as you type."
+                       Foreground="#777"
+                       VerticalAlignment="Center"
+                       Margin="8,0,0,0"/>
+        </Grid>
+
+        <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*"/>
                 <ColumnDefinition Width="2*"/>
@@ -70,7 +100,7 @@
 
             <GroupBox Header="Tables" Grid.Column="0">
                 <Grid>
-                    <ListBox ItemsSource="{Binding Tables}"
+                    <ListBox ItemsSource="{Binding TablesView}"
                              SelectedItem="{Binding SelectedTable, Mode=TwoWay}"
                              DisplayMemberPath="TableName"
                              BorderThickness="0"
@@ -84,13 +114,13 @@
                                TextAlignment="Center"
                                TextWrapping="Wrap"
                                Margin="12"
-                               Visibility="{Binding EmptyTablesMessageVisibility}"/>
+                               Visibility="{Binding HasTables, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
                 </Grid>
             </GroupBox>
 
             <GroupBox Header="Hands" Grid.Column="1">
                 <Grid>
-                    <ListBox ItemsSource="{Binding SelectedTableHands}"
+                    <ListBox ItemsSource="{Binding HandsView}"
                              SelectedItem="{Binding SelectedHand, Mode=TwoWay}"
                              BorderThickness="0"
                              Background="Transparent"
@@ -109,7 +139,7 @@
                                TextAlignment="Center"
                                TextWrapping="Wrap"
                                Margin="12"
-                               Visibility="{Binding EmptyHandsMessageVisibility}"/>
+                               Visibility="{Binding HasHands, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
                 </Grid>
             </GroupBox>
 
@@ -160,12 +190,12 @@
                                TextAlignment="Center"
                                TextWrapping="Wrap"
                                Margin="12"
-                               Visibility="{Binding EmptyDetailsMessageVisibility}"/>
+                               Visibility="{Binding HasSelectedHand, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
                 </Grid>
             </GroupBox>
         </Grid>
 
-        <Border Grid.Row="3"
+        <Border Grid.Row="4"
                 Margin="0,8,0,0"
                 Padding="8"
                 BorderBrush="#D0D0D0"

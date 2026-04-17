@@ -1,10 +1,12 @@
 ﻿using PokerLogViewer.Commands;
+using PokerLogViewer.Converters;
 using PokerLogViewer.Models;
 using PokerLogViewer.Services;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using System.Linq;
+using System.ComponentModel;
 using System.Windows;
+using System.Windows.Data;
 using System.Windows.Threading;
 
 namespace PokerLogViewer.ViewModels;
@@ -19,8 +21,14 @@ public class MainViewModel : ViewModelBase
     private string _selectedFolderPath = string.Empty;
     private bool _isScanning;
 
+    private string _tableSearchText = string.Empty;
+    private string _handSearchText = string.Empty;
+
     private PokerTable? _selectedTable;
     private PokerHand? _selectedHand;
+
+    private readonly ICollectionView _tablesView;
+    private readonly ICollectionView _handsView;
 
     public MainViewModel()
     {
@@ -31,17 +39,14 @@ public class MainViewModel : ViewModelBase
         SelectFolderCommand = new RelayCommand(SelectFolder);
         StartScanCommand = new RelayCommand(StartScan, CanStartScan);
 
-        Tables.CollectionChanged += (_, __) =>
-        {
-            OnPropertyChanged(nameof(HasTables));
-            OnPropertyChanged(nameof(EmptyTablesMessageVisibility));
-        };
+        _tablesView = CollectionViewSource.GetDefaultView(Tables);
+        _tablesView.Filter = FilterTables;
 
-        SelectedTableHands.CollectionChanged += (_, __) =>
-        {
-            OnPropertyChanged(nameof(HasHands));
-            OnPropertyChanged(nameof(EmptyHandsMessageVisibility));
-        };
+        _handsView = CollectionViewSource.GetDefaultView(SelectedTableHands);
+        _handsView.Filter = FilterHands;
+
+        Tables.CollectionChanged += OnTablesChanged;
+        SelectedTableHands.CollectionChanged += OnSelectedTableHandsChanged;
     }
 
     public string StatusText
@@ -70,13 +75,35 @@ public class MainViewModel : ViewModelBase
         }
     }
 
+    public string TableSearchText
+    {
+        get => _tableSearchText;
+        set
+        {
+            if (SetProperty(ref _tableSearchText, value))
+            {
+                _tablesView.Refresh();
+                UpdateSelectionAfterTableFilter();
+            }
+        }
+    }
+
+    public string HandSearchText
+    {
+        get => _handSearchText;
+        set
+        {
+            if (SetProperty(ref _handSearchText, value))
+                _handsView.Refresh();
+        }
+    }
+
     public ObservableCollection<PokerHand> Hands { get; } = new();
     public ObservableCollection<PokerTable> Tables { get; } = new();
     public ObservableCollection<PokerHand> SelectedTableHands { get; } = new();
 
-    public bool HasTables => Tables.Count > 0;
-    public bool HasHands => SelectedTableHands.Count > 0;
-    public bool HasSelectedHand => SelectedHand is not null;
+    public ICollectionView TablesView => _tablesView;
+    public ICollectionView HandsView => _handsView;
 
     public PokerTable? SelectedTable
     {
@@ -87,7 +114,7 @@ public class MainViewModel : ViewModelBase
             {
                 UpdateSelectedTableHands();
                 OnPropertyChanged(nameof(HasSelectedTable));
-                OnPropertyChanged(nameof(EmptyHandsMessageVisibility));
+                OnPropertyChanged(nameof(HasHands));
                 OnPropertyChanged(nameof(HasSelectedHand));
             }
         }
@@ -99,21 +126,28 @@ public class MainViewModel : ViewModelBase
         set
         {
             if (SetProperty(ref _selectedHand, value))
-            {
                 OnPropertyChanged(nameof(HasSelectedHand));
-                OnPropertyChanged(nameof(EmptyDetailsMessageVisibility));
-            }
         }
     }
 
     public bool HasSelectedTable => SelectedTable is not null;
-
-    public Visibility EmptyTablesMessageVisibility => HasTables ? Visibility.Collapsed : Visibility.Visible;
-    public Visibility EmptyHandsMessageVisibility => HasHands ? Visibility.Collapsed : Visibility.Visible;
-    public Visibility EmptyDetailsMessageVisibility => HasSelectedHand ? Visibility.Collapsed : Visibility.Visible;
+    public bool HasTables => Tables.Count > 0;
+    public bool HasHands => SelectedTableHands.Count > 0;
+    public bool HasSelectedHand => SelectedHand is not null;
 
     public RelayCommand SelectFolderCommand { get; }
     public RelayCommand StartScanCommand { get; }
+
+    private void OnTablesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(HasTables));
+    }
+
+    private void OnSelectedTableHandsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(HasHands));
+        _handsView.Refresh();
+    }
 
     private void SelectFolder()
     {
@@ -145,9 +179,6 @@ public class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasTables));
         OnPropertyChanged(nameof(HasHands));
         OnPropertyChanged(nameof(HasSelectedHand));
-        OnPropertyChanged(nameof(EmptyTablesMessageVisibility));
-        OnPropertyChanged(nameof(EmptyHandsMessageVisibility));
-        OnPropertyChanged(nameof(EmptyDetailsMessageVisibility));
 
         IsScanning = true;
         StatusText = "Сканирование...";
@@ -196,7 +227,7 @@ public class MainViewModel : ViewModelBase
         }
 
         OnPropertyChanged(nameof(HasTables));
-        OnPropertyChanged(nameof(EmptyTablesMessageVisibility));
+        _tablesView.Refresh();
 
         if (Tables.Count > 0)
             SelectedTable = Tables[0];
@@ -207,14 +238,56 @@ public class MainViewModel : ViewModelBase
         SelectedTableHands.Clear();
 
         if (SelectedTable is null)
+        {
+            SelectedHand = null;
+            _handsView.Refresh();
+            OnPropertyChanged(nameof(HasHands));
+            OnPropertyChanged(nameof(HasSelectedHand));
             return;
+        }
 
         foreach (var hand in SelectedTable.Hands)
             SelectedTableHands.Add(hand);
 
-        OnPropertyChanged(nameof(HasHands));
-        OnPropertyChanged(nameof(EmptyHandsMessageVisibility));
-
         SelectedHand = null;
+        _handsView.Refresh();
+
+        OnPropertyChanged(nameof(HasHands));
+        OnPropertyChanged(nameof(HasSelectedHand));
+    }
+
+    private void UpdateSelectionAfterTableFilter()
+    {
+        if (SelectedTable is null)
+            return;
+
+        if (!FilterTables(SelectedTable))
+            SelectedTable = Tables.FirstOrDefault();
+    }
+
+    private bool FilterTables(object obj)
+    {
+        if (obj is not PokerTable table)
+            return false;
+
+        var search = TableSearchText?.Trim();
+
+        if (string.IsNullOrWhiteSpace(search))
+            return true;
+
+        return table.TableName.Contains(search, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool FilterHands(object obj)
+    {
+        if (obj is not PokerHand hand)
+            return false;
+
+        var search = HandSearchText?.Trim();
+
+        if (string.IsNullOrWhiteSpace(search))
+            return true;
+
+        return hand.HandID.ToString().Contains(search, StringComparison.OrdinalIgnoreCase);
     }
 }
